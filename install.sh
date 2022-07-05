@@ -1,56 +1,146 @@
 !/bin/bash
 
+
+###### Update System ######
+
 sudo apt-get update
 sudo apt-get upgrade -y
-
-sudo adduser -system -home=/opt/odoo -group odoo
-
-
-sudo apt-get install postgresql -y
+############################
 
 
-sudo su - postgres -c "createuser -s odoo" 2> /dev/null || true
+######## security #########
+sudo apt-get install openssh-server fail2ban
+############################
 
 
-sudo apt-get install git python3 python3-pip build-essential wget python3-dev python3-venv python3-wheel libxslt-dev libzip-dev libldap2-dev libsasl2-dev python3-setuptools node-less libjpeg-dev gdebi -y
+####### install pip3 #######
+sudo apt-get install -y python3-pip
+############################
 
 
-sudo apt-get install libpq-dev python-dev libxml2-dev libxslt1-dev libldap2-dev libsasl2-dev libffi-dev
-sudo -H pip3 install -r https://raw.githubusercontent.com/odoo/odoo/master/requirements.txt
+
+######## libraries ########
+sudo apt-get install git python-dev python3-dev libxml2-dev libxslt1-dev \
+                     zlib1g-dev libsasl2-dev libldap2-dev build-essential \ 
+                     libssl-dev libffi-dev libmysqlclient-dev libjpeg-dev \
+                     libpq-dev libjpeg8-dev liblcms2-dev libblas-dev libatlas-base-dev -y
+############################
 
 
-sudo apt-get install nodejs npm -y
-sudo npm install -g rtlcss
+ 
+######### WEB Need #########
+sudo apt-get install -y npm
+sudo ln -s /usr/bin/nodejs /usr/bin/node
+sudo npm install -g less less-plugin-clean-css
+sudo apt-get install -y node-less
+############################
 
 
-sudo apt-get install xfonts-75dpi
-sudo wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.bionic_amd64.deb
-sudo dpkg -i wkhtmltox_0.12.6-1.bionic_amd64.deb
-sudo cp /usr/local/bin/wkhtmltoimage /usr/bin/wkhtmltoimage
-sudo cp /usr/local/bin/wkhtmltopdf /usr/bin/wkhtmltopdf
+
+######## postgresql ########
+sudo apt-get install postgresql
+sudo su - postgres
+createuser --createdb --username postgres --no-createrole --no-superuser --pwprompt odoo15
+# psql
+# ALTER USER odoo15 WITH SUPERUSER;
+############################
+
+
+######### ADD USER #########
+# sudo adduser -system -home=/opt/odoo -group odoo
+sudo adduser --system --home=/opt/odoo --group odoo
+sudo su - odoo -s /bin/bash
+############################
+
+
+
+####### Download odoo #####
+git clone https://www.github.com/odoo/odoo --depth 1 --branch 15.0 --single-branch .
+###########################
+
+
+
+##### Required Python #####
+sudo pip3 install -r /opt/odoo/requirements.txt
+###########################
+
+
+
+
+####### Wkhtmltopdf #######
+sudo wget https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.5/wkhtmltox_0.12.5-1.bionic_amd64.deb
+sudo dpkg -i wkhtmltox_0.12.5-1.bionic_amd64.deb
+sudo apt install -f
+###########################
+
+
+
+
+##### Setup Conf file #####
+
+
+sudo cp /opt/odoo/debian/odoo.conf /etc/odoo.conf
+sudo nano /etc/odoo.conf
+
+# [options]
+#    ; This is the password that allows database operations:
+#    admin_passwd = admin
+#    db_host = False
+#    db_port = False
+#    db_user = odoo15
+#    db_password = False
+#    addons_path = /opt/odoo/addons
+#    logfile = /var/log/odoo/odoo.log
+
+
+sudo chown odoo: /etc/odoo.conf
+sudo chmod 640 /etc/odoo.conf
 
 
 sudo mkdir /var/log/odoo
-sudo chown odoo:odoo /var/log/odoo
+sudo chown odoo:root /var/log/odoo
+
+###########################
 
 
-sudo apt-get install git
-sudo git clone --depth 1 --branch 14.0 https://www.github.com/odoo/odoo /odoo/odoo-server
+
+#### Odoo service file ####
+
+sudo nano /etc/systemd/system/odoo.service
 
 
-sudo chown -R odoo:odoo /odoo/*
+
+# [Unit]
+#    Description=Odoo
+#    Documentation=http://www.odoo.com
+#    [Service]
+#    # Ubuntu/Debian convention:
+#    Type=simple
+#    User=odoo
+#    ExecStart=/opt/odoo/odoo-bin -c /etc/odoo.conf
+#    [Install]
+#    WantedBy=default.target
+
+sudo chmod 755 /etc/systemd/system/odoo.service
+sudo chown root: /etc/systemd/system/odoo.service
 
 
-sudo touch /etc/odoo-server.conf
-sudo su root -c "printf '[options] \n; This is the password that allows database operations:\n' >> /etc/odoo-server.conf" 
-sudo su root -c "printf 'admin_passwd = admin\n' >> /etc/odoo-server.conf"
-sudo su root -c "printf 'xmlrpc_port = 8069\n' >> /etc/odoo-server.conf" 
-sudo su root -c "printf 'logfile = /var/log/odoo/odoo-server.log\n' >> /etc/odoo-server.conf" 
-sudo su root -c "printf 'addons_path=/odoo/odoo-server/addons\n' >> /etc/odoo-server.conf" 
-sudo chown odoo:odoo /etc/odoo-server.conf 
-sudo chmod 640 /etc/odoo-server.conf 
+sudo systemctl start odoo.service
+sudo systemctl status odoo.service
+sudo systemctl enable odoo.service
 
 
-sudo su - odoo -s /bin/bash
-cd /odoo/odoo-server
-./odoo-bin -c /etc/odoo-server.conf
+###########################
+
+
+
+
+
+
+##### Source ######
+# https://www.cybrosys.com/blog/how-to-install-odoo-15-on-ubuntu-2004-lts-server
+# https://www.youtube.com/watch?v=mlvJCfxNKDE&ab_channel=CybrosysTechnologies
+###################
+
+
+
